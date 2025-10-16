@@ -29,6 +29,9 @@ class core_completion_defaultedit_form extends core_completion_edit_base_form {
     /** @var array */
     protected $_modnames;
 
+    /** @var \moodleform_mod|null */
+    protected $prefetchedmoduleform = null;
+
     public function __construct(
         $action = null,
         $customdata = null,
@@ -38,6 +41,7 @@ class core_completion_defaultedit_form extends core_completion_edit_base_form {
         $editable = true,
         $ajaxformdata = null
     ) {
+        $this->prefetchedmoduleform = $customdata['moduleform'] ?? null;
         $this->modules = $customdata['modules'];
         if ($modname = $this->get_module_name()) {
             // Set the form suffix to the module name so that the form identifier is unique for each module type.
@@ -74,11 +78,17 @@ class core_completion_defaultedit_form extends core_completion_edit_base_form {
             return $this->_moduleform;
         }
 
+        if ($this->prefetchedmoduleform) {
+            $this->_moduleform = $this->prefetchedmoduleform;
+            $this->prefetchedmoduleform = null;
+            return $this->_moduleform;
+        }
+
         $modnames = array_keys($this->get_module_names());
         $this->_moduleform = manager::get_module_form(
-                modname: $modnames[0],
-                course: $this->course,
-                suffix: $this->get_suffix(),
+            modname: $modnames[0],
+            course: $this->course,
+            suffix: $this->get_suffix(),
         );
 
         return $this->_moduleform;

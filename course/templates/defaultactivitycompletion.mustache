@@ -51,8 +51,8 @@
                 <div class="defaultactivitycompletion-item d-flex"
                     id="activitycompletion-{{id}}"
                 >
-                    <a data-toggle="collapse"
-                        href="#activitycompletioncollapse-{{id}}"
+                    <a {{^requiresreload}}data-toggle="collapse"{{/requiresreload}}
+                        href="{{#requiresreload}}{{reloadurl}}{{/requiresreload}}{{^requiresreload}}#activitycompletioncollapse-{{id}}{{/requiresreload}}"
                         class="icons-collapse-expand {{#modulecollapsed}}collapsed{{/modulecollapsed}}"
                         aria-expanded="{{^modulecollapsed}}true{{/modulecollapsed}}{{#modulecollapsed}}false{{/modulecollapsed}}"
                         role="button"

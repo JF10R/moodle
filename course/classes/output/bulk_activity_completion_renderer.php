@@ -51,42 +51,40 @@ class core_course_bulk_activity_completion_renderer extends plugin_renderer_base
      *
      * @param array|stdClass $data the context data to pass to the template.
      * @param array $modules The modules that have been sent through the form.
-     * @param moodleform $form The current form that has been sent.
+     * @param array $renderedforms Rendered HTML for the requested module forms, keyed by module id.
+     * @param array $unavailablemodules Module ids that could not provide a form.
      * @return bool|string
      */
-    public function defaultcompletion($data, $modules, $form) {
+    public function defaultcompletion($data, $modules, array $renderedforms, array $unavailablemodules) {
         $course = get_course($data->courseid);
+        $selectedids = array_map('intval', array_keys($modules));
         foreach ($data->modules as $module) {
             // If the user can manage this module, then the activity completion form needs to be returned too, without the
             // cancel button (so only "Save changes" button is displayed).
             if ($module->canmanage) {
-                // Only create the form if it's different from the one that has been sent.
-                $modform = $form;
-                if (empty($form) || !in_array($module->id, array_keys($modules))) {
-                    $modform = new \core_completion_defaultedit_form(
-                        null,
-                        [
-                            'course' => $course,
-                            'modules' => [
-                                $module->id => $module,
-                            ],
-                            'displaycancel' => false,
-                            'forceuniqueid' => true,
-                        ],
-                    );
-                    $module->modulecollapsed = true;
-                }
+                $moduleid = (int)$module->id;
+                $isloaded = in_array($moduleid, $selectedids, true);
+                $module->modulecollapsed = !$isloaded;
+                $module->requiresreload = !$isloaded;
 
-                $moduleform = manager::get_module_form($module->name, $course);
-                if ($moduleform) {
-                    $module->formhtml = $modform->render();
+                if ($isloaded) {
+                    if (!empty($unavailablemodules[$moduleid])) {
+                        $module->formhtml = $this->output->notification(
+                            get_string('incompatibleplugin', 'completion'),
+                            \core\output\notification::NOTIFY_INFO,
+                            false
+                        );
+                    } else {
+                        $module->formhtml = $renderedforms[$moduleid] ?? '';
+                    }
                 } else {
-                    // If the module form is not available, then display a message.
-                    $module->formhtml = $this->output->notification(
-                        get_string('incompatibleplugin', 'completion'),
-                        \core\output\notification::NOTIFY_INFO,
-                        false
-                    );
+                    $params = ['id' => $course->id, 'modids' => []];
+                    foreach ($selectedids as $selectedid) {
+                        $params['modids'][$selectedid] = $selectedid;
+                    }
+                    $params['modids'][$moduleid] = $moduleid;
+                    $module->reloadurl = (new moodle_url('/course/defaultcompletion.php', $params))->out(false);
+                    $module->formhtml = '';
                 }
             }
         }

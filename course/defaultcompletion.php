@@ -70,15 +70,35 @@ foreach ($allmodules->modules as $module) {
     }
 }
 
-$form = null;
+$renderedforms = [];
+$unavailablemodules = [];
 if (!empty($modules)) {
-    $form = new core_completion_defaultedit_form(
-        null,
-        ['course' => $course, 'modules' => $modules, 'displaycancel' => false, 'forceuniqueid' => true]
-    );
-    if (!$form->is_cancelled() && $data = $form->get_data()) {
-        $data->modules = $modules;
-        $manager->apply_default_completion($data, $form->has_custom_completion_rules(), $form->get_suffix());
+    $applied = false;
+    foreach ($modules as $moduleid => $module) {
+        $moduleform = \core_completion\manager::get_module_form($module->name, $course);
+        if (!$moduleform) {
+            $unavailablemodules[$moduleid] = true;
+            continue;
+        }
+
+        $form = new core_completion_defaultedit_form(
+            null,
+            [
+                'course' => $course,
+                'modules' => [$moduleid => $module],
+                'displaycancel' => false,
+                'forceuniqueid' => true,
+                'moduleform' => $moduleform,
+            ]
+        );
+
+        if (!$applied && !$form->is_cancelled() && ($data = $form->get_data())) {
+            $data->modules = [$moduleid => $module];
+            $manager->apply_default_completion($data, $form->has_custom_completion_rules(), $form->get_suffix());
+            $applied = true;
+        }
+
+        $renderedforms[$moduleid] = $form->render();
     }
 }
 
@@ -94,6 +114,6 @@ if ($id == SITEID) {
     echo $renderer->render_course_completion_action_bar($actionbar);
 }
 
-echo $renderer->defaultcompletion($allmodules, $modules, $form);
+echo $renderer->defaultcompletion($allmodules, $modules, $renderedforms, $unavailablemodules);
 
 echo $OUTPUT->footer();
